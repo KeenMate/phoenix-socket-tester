@@ -47,11 +47,11 @@
 			<table class="table table-striped">
 				<thead>
 					<tr>
-						<th />
-						<th>Topic</th>
-						<th>Time</th>
-						<th>event</th>
-						<th>ref</th>
+						<th class="compact" />
+						<th class="compact">Topic</th>
+						<!-- <th class="compact">Time</th> -->
+						<th class="compact">event</th>
+						<th class="compact">ref</th>
 						<th>payload</th>
 					</tr>
 				</thead>
@@ -68,15 +68,15 @@
 							<td> {msg.topic}</td>
 
 							<!-- <td>{JSON.stringify(msg)}</td> -->
-							<td>{msg.date.toLocaleTimeString('uk')}</td>
+							<!-- <td>{msg.date.toLocaleTimeString('uk')}</td> -->
 							<td
 								class:text-danger={msg.event == 'phx_error'}
 								class:text-primary={msg.event == 'phx_join'}
 								class:text-success={msg.event == 'phx_reply'}
 								class:text-warning={msg.event == 'phx_close'}
 							>
-								{msg.event}</td
-							>
+								<b>{msg.event}</b>
+							</td>
 							<td> {msg.ref}</td>
 							<td>{@html syntaxHighlight(JSON.stringify(msg.payload), null, 2)}</td>
 						</tr>
@@ -88,6 +88,10 @@
 </div>
 
 <style lang="scss">
+	.compact {
+		width: 1px;
+	}
+
 	.table-wrapper {
 		max-height: 80vh;
 		overflow: auto;
