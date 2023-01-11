@@ -9,25 +9,56 @@
 
 	let manager;
 	let store;
+	let topicsStore;
 	function connect() {
 		if (!socketUrl) {
 			alert('socket url cant be null');
 		}
-		console.log({ socketUrl, topic });
-		manager = new channelManager(socketUrl, topic);
+
+		manager = new channelManager(socketUrl);
 		store = manager.store;
+		topicsStore = manager.topicsStore;
+	}
+
+	function joinChannel() {
+		manager.addChannel(topic);
 	}
 </script>
 
-<div class="container">
+<div class="mx-3">
 	<div class="row">
 		<div class="col-6">
-			<div>
-				<h1>Socket connection</h1>
-				<input bind:value={socketUrl} class="form-control" />
-				<input bind:value={topic} class="form-control" />
-				<button on:click={connect} class="btn btn-primary"> Connect</button>
+			<div class="card ">
+				<div class="card-header  bg-success text-white">
+					<h4>Connections</h4>
+				</div>
+				<div class="card-body">
+					<div>
+						<h4>Socket connection</h4>
+						<div class="input-group">
+							<input bind:value={socketUrl} class="form-control" />
+							<button on:click={connect} class="btn btn-success" disabled={manager}>
+								Connect
+							</button>
+						</div>
+					</div>
+					<h4>Channels</h4>
+					{#if manager?.ready}
+						<ul>
+							{#each $topicsStore as channel}
+								<li>{channel.topic}</li>
+							{/each}
+						</ul>
+					{/if}
+					<div class="input-group">
+						<input bind:value={topic} class="form-control" />
+						<button on:click={joinChannel} class="btn btn-success" disabled={!manager}>
+							Join</button
+						>
+					</div>
+				</div>
 			</div>
+
 			{#if manager?.ready}
 				<EventSender bind:manager />
 			{/if}
@@ -35,7 +66,7 @@
 		<div class="col-6">
 			{#if manager?.ready}
 				<!-- {JSON.stringify($store)} -->
-				<MessagesTable messages={$store} />
+				<MessagesTable bind:manager/>
 			{/if}
 		</div>
 	</div>

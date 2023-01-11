@@ -19,6 +19,7 @@
 		"prettier-plugin-svelte": "^2.8.1",
 		"sass": "^1.57.1",
 		"svelte": "^3.54.0",
+		"svelte-preprocess": "^5.0.0",
 		"vite": "^4.0.0"
 	},
 	"type": "module",
@@ -26,6 +27,8 @@
 		"bootstrap": "^5.2.3",
 		"highlight.js": "^11.7.0",
 		"json-colorizer": "^2.2.2",
-		"phoenix": "^1.7.0-rc.1"
+		"phoenix": "^1.7.0-rc.1",
+		"svelte-multiselect": "github:KeenMate/svelte-multiselect",
+		"toastr": "^2.1.4"
 	}
 }
