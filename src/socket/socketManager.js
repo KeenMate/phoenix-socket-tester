@@ -1,6 +1,6 @@
 import { Socket } from 'phoenix';
 import { writable } from 'svelte/store';
-import { showSuccess, showError } from '../helpers/notifications';
+import { showSuccess, showError, showWarning } from '../helpers/notifications';
 
 export class channelManager {
 	constructor(socketUrl) {
@@ -21,16 +21,24 @@ export class channelManager {
 	addChannel(topic, params) {
 		let channel = this.socket.channel(topic, params);
 
-		channel
-			.join()
+		let joinPush = channel.join();
+
+		joinPush
 			.receive('ok', () => this.afterChannelJoin(channel))
-			.receive('error', ({ reason }) => showError(JSON.stringify(reason), 'Error joingin'))
+			.receive('error', ({ reason }) => showError(JSON.stringify(reason), 'Error joining'))
 			.receive('timeout', () => showError('Timeout'));
+
+		this.joinRefs[channel.topic] = channel.joinRef();
+		this.addMessage(channel.joinRef, 'phx_join', {}, joinPush.ref, true, topic);
 		channel.onClose(() => showError(`${topic} channel closed`));
+		channel.onError(() => showError(`${topic} channel error`));
+		channel.on('leave', () => {
+			this.addMessage(channel.joinRef, 'phx_leave', {}, joinPush.ref, true, topic);
+			showWarning(`${topic} leaving  `);
+		});
 	}
 
 	afterChannelJoin(channel) {
-		this.joinRefs[channel.topic] = channel.joinRef();
 		//join ref should be unqiue for given socket
 		this.messages[channel.join_ref] = [];
 
@@ -61,7 +69,14 @@ export class channelManager {
 		}
 		// console.debug({ message: data });
 		//add to messages
-		this.addMessage(data.join_ref, data.event, data.payload, data.ref, false);
+		this.addMessage(
+			data.join_ref,
+			data.event,
+			data.payload,
+			data.ref,
+			false,
+			this.getTopic(data.join_ref)
+		);
 		return data;
 	}
 
@@ -81,7 +96,7 @@ export class channelManager {
 
 		console.log({ push });
 
-		this.addMessage(this.getJoinRef(topic), eventName, push.payload(), push.ref, true);
+		this.addMessage(this.getJoinRef(topic), eventName, push.payload(), push.ref, true, topic);
 		console.log(this.messages);
 	}
 
@@ -90,7 +105,7 @@ export class channelManager {
 		return this.socket.channels.find((x) => x.joinRef() == joinRef);
 	}
 
-	addMessage(joinRef, event, payload, ref, outgoing) {
+	addMessage(joinRef, event, payload, ref, outgoing, topic) {
 		let message = {
 			joinRef: joinRef,
 			event,
@@ -98,7 +113,7 @@ export class channelManager {
 			date: new Date(),
 			ref,
 			outgoing,
-			topic: this.getTopic(joinRef)
+			topic: topic
 		};
 
 		if (!this.messages[joinRef]) this.messages[joinRef] = [];

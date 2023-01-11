@@ -71,7 +71,9 @@
 							<td>{msg.date.toLocaleTimeString('uk')}</td>
 							<td
 								class:text-danger={msg.event == 'phx_error'}
-								class:text-primary={msg.event == 'phx_reply'}
+								class:text-primary={msg.event == 'phx_join'}
+								class:text-success={msg.event == 'phx_reply'}
+								class:text-warning={msg.event == 'phx_close'}
 							>
 								{msg.event}</td
 							>
