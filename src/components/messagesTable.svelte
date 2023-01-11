@@ -65,7 +65,7 @@
 									<i class="las la-long-arrow-alt-down" />
 								{/if}
 							</td>
-							<td> {msg.topic}</td>
+							<td> {msg.topic}({msg.joinRef})</td>
 
 							<!-- <td>{JSON.stringify(msg)}</td> -->
 							<!-- <td>{msg.date.toLocaleTimeString('uk')}</td> -->

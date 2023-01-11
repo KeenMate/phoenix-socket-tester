@@ -15,39 +15,55 @@ export class channelManager {
 		this.topicsStore = new writable([]);
 		// this.channel.join();
 		this.ready = true;
+		//TODO revork joinRefs and topic lookup
 		this.joinRefs = {};
+		this.topicsLookup = {};
 	}
 
 	addChannel(topic, params) {
 		let channel = this.socket.channel(topic, params);
+		//TODO manually leave channel if already connect to get leave push
+		// if()
+		this.joinChannel(channel);
+		this.addChannelHandlers(topic, channel);
+	}
 
+	addChannelHandlers(topic, channel) {
+		channel.onClose(() => showError(`${topic} channel closed`));
+		channel.onError(() => showError(`${topic} channel error`));
+		channel.on('leave', () => {
+			this.addMessage(channel.joinRef(), 'phx_leave', {}, channel.joinPush.ref, true, topic);
+			showWarning(`${topic} leaving  `);
+		});
+	}
+
+	joinChannel(channel) {
 		let joinPush = channel.join();
 
 		joinPush
-			.receive('ok', () => this.afterChannelJoin(channel))
+			.receive('ok', () => this.afterChannelJoin(joinPush.channel))
 			.receive('error', ({ reason }) => showError(JSON.stringify(reason), 'Error joining'))
 			.receive('timeout', () => showError('Timeout'));
 
 		this.joinRefs[channel.topic] = channel.joinRef();
-		this.addMessage(channel.joinRef, 'phx_join', {}, joinPush.ref, true, topic);
-		channel.onClose(() => showError(`${topic} channel closed`));
-		channel.onError(() => showError(`${topic} channel error`));
-		channel.on('leave', () => {
-			this.addMessage(channel.joinRef, 'phx_leave', {}, joinPush.ref, true, topic);
-			showWarning(`${topic} leaving  `);
-		});
+		this.topicsLookup[channel.joinRef()] = channel.topic;
+
+		this.addMessage(channel.joinRef(), 'phx_join', {}, joinPush.ref, true, channel.topic);
 	}
 
 	afterChannelJoin(channel) {
 		//join ref should be unqiue for given socket
 		this.messages[channel.join_ref] = [];
 
+		this.updateTopicsStore();
+		showSuccess(`${channel.topic} channel joined`);
+	}
+
+	updateTopicsStore() {
 		let channels = Object.keys(this.joinRefs).map((x) => {
 			return { ref: this.joinRefs[x], topic: x };
 		});
-
 		this.topicsStore.set(channels);
-		showSuccess(`${channel.topic} channel joined`);
 	}
 
 	getJoinRef(topic) {
@@ -55,7 +71,7 @@ export class channelManager {
 	}
 
 	getTopic(ref) {
-		return Object.keys(this.joinRefs).find((key) => this.joinRefs[key] === ref);
+		return this.topicsLookup[ref];
 	}
 
 	/**
@@ -67,7 +83,6 @@ export class channelManager {
 		if (!data.join_ref) {
 			return data;
 		}
-		// console.debug({ message: data });
 		//add to messages
 		this.addMessage(
 			data.join_ref,
@@ -86,22 +101,18 @@ export class channelManager {
 	}
 
 	send(topic, eventName, payload) {
-		console.log(topic);
 		let channel = this.getChannel(this.getJoinRef(topic));
+
 		if (!channel) {
 			throw 'channel with given topic is not joined';
 		}
 
 		let push = channel.push(eventName, payload, 10000);
 
-		console.log({ push });
-
 		this.addMessage(this.getJoinRef(topic), eventName, push.payload(), push.ref, true, topic);
-		console.log(this.messages);
 	}
 
 	getChannel(joinRef) {
-		console.log(joinRef, this.socket.channels);
 		return this.socket.channels.find((x) => x.joinRef() == joinRef);
 	}
 
@@ -119,8 +130,7 @@ export class channelManager {
 		if (!this.messages[joinRef]) this.messages[joinRef] = [];
 		this.messages[joinRef ?? 'no_join_ref'].push(message);
 
-		// console.log(this.messages);
-
+		console.debug(message);
 		//update store to force rerender
 		this.store.set(this.messages);
 	}
@@ -135,8 +145,6 @@ export class channelManager {
 		if (!refs.length) {
 			messagesArrays = Object.values(this.messages);
 		}
-
-		console.log(messagesArrays);
 
 		return this.joinMessages(messagesArrays ?? this.messages);
 	}
