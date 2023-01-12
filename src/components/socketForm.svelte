@@ -2,22 +2,25 @@
 	import { channelManager } from '../socket/socketManager';
 	import EventSender from './eventSender.svelte';
 	import MessagesTable from './messagesTable.svelte';
+	import { showError } from '../helpers/notifications';
 
 	let socketUrl = 'ws://localhost:4000/ws/websocket?token=undefined&vsn=2.0.0',
-		topic = 'helper_test:lobby',
-		eventName;
+		topic = 'helper_test:lobby';
 
 	let manager;
-	let store;
+	let socketConnected = false;
 	let topicsStore;
-	function connect() {
-		if (!socketUrl) {
-			alert('socket url cant be null');
-		}
-
-		manager = new channelManager(socketUrl);
-		store = manager.store;
+	async function connect() {
+		manager = new channelManager(socketUrl, () => (manager = null));
+		await manager.connectSocket();
+		socketConnected = true;
 		topicsStore = manager.topicsStore;
+	}
+
+	async function disconnect() {
+		socketConnected = false;
+		await manager.disconnectSocket();
+		manager = null;
 	}
 
 	function joinChannel() {
@@ -29,7 +32,12 @@
 	<div class="row">
 		<div class="col-6">
 			<div class="card ">
-				<div class="card-header  bg-success text-white">
+				<div
+					class="card-header text-white "
+					class:bg-success={socketConnected}
+					class:bg-warning={manager && !socketConnected}
+					class:bg-danger={!socketConnected}
+				>
 					<h4>Connections</h4>
 				</div>
 				<div class="card-body">
@@ -37,36 +45,40 @@
 						<h4>Socket connection</h4>
 						<div class="input-group">
 							<input bind:value={socketUrl} class="form-control" />
-							<button on:click={connect} class="btn btn-success" disabled={manager}>
-								Connect
-							</button>
+							{#if !manager}
+								<button on:click={connect} class="btn btn-success"> Connect </button>
+							{:else}
+								<button on:click={disconnect} class="btn btn-danger"> Disconnect </button>
+							{/if}
 						</div>
 					</div>
 					<h4>Channels</h4>
-					{#if manager?.ready}
+
+					<div class="input-group">
+						<input bind:value={topic} class="form-control" />
+						<button on:click={joinChannel} class="btn btn-success" disabled={!socketConnected}>
+							Join</button
+						>
+					</div>
+
+					{#if socketConnected}
 						<ul>
 							{#each $topicsStore as channel}
 								<li>{channel.topic}</li>
 							{/each}
 						</ul>
 					{/if}
-					<div class="input-group">
-						<input bind:value={topic} class="form-control" />
-						<button on:click={joinChannel} class="btn btn-success" disabled={!manager}>
-							Join</button
-						>
-					</div>
 				</div>
 			</div>
 
-			{#if manager?.ready}
+			{#if socketConnected}
 				<EventSender bind:manager />
 			{/if}
 		</div>
 		<div class="col-6">
-			{#if manager?.ready}
+			{#if socketConnected}
 				<!-- {JSON.stringify($store)} -->
-				<MessagesTable bind:manager/>
+				<MessagesTable bind:manager />
 			{/if}
 		</div>
 	</div>

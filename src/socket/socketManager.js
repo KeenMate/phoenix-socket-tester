@@ -1,12 +1,11 @@
 import { Socket } from 'phoenix';
 import { writable } from 'svelte/store';
-import { wait } from '../helpers.js/helper';
+import { wait } from '../helpers/helper';
 import { showSuccess, showError, showWarning } from '../helpers/notifications';
 
 export class channelManager {
-	constructor(socketUrl) {
+	constructor(socketUrl, connClosedCallback) {
 		this.socket = new Socket(socketUrl);
-		this.socket.connect();
 
 		this.socket.onMessage(this.handleMessage.bind(this));
 		this.socket.logger = this.log.bind(this);
@@ -15,9 +14,29 @@ export class channelManager {
 		this.messages = {};
 		this.store = new writable([]);
 		this.topicsStore = new writable([]);
-		this.ready = true;
+
+		this.socket.onClose = connClosedCallback;
 
 		this.topicsLookup = {};
+	}
+
+	connectSocket() {
+		return new Promise((resolve) => {
+			this.socket.connect();
+			this.socket.onOpen(() => {
+				this.ready = true;
+				resolve();
+			});
+		});
+	}
+
+	disconnectSocket(){
+		return new Promise((resolve) => {
+			this.socket.disconnect(() => {
+				this.ready = false;
+				resolve();
+			});
+		});
 	}
 
 	async addChannel(topic, params) {
@@ -114,11 +133,17 @@ export class channelManager {
 	log(type, event, payload) {
 		console.debug(type, event, payload);
 
-		let splittedEvent = event.split(' ');
-		//catch phx_join
-		if (type == 'push' && splittedEvent[1] == 'phx_join') {
-			let topic = splittedEvent[0];
+		//TODO make better
+		if (!event && typeof event !== 'string') {
+			return;
+		}
 
+		let splittedEvent = event?.split(' ');
+		console.log(splittedEvent, splittedEvent?.length);
+		//catch phx_join
+		if (type == 'push' && splittedEvent?.length >= 3 && splittedEvent[1] == 'phx_join') {
+			let topic = splittedEvent[0];
+			console.log('IN');
 			let r = /\d+/;
 			let ref = splittedEvent[2].match(r);
 
