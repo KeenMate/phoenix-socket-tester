@@ -49,7 +49,7 @@
 			label="topic"
 		/>
 		<div class="table-wrapper">
-			<table class="table table-striped overflow-x-hidden">
+			<table class="table table-striped overflow-hidden">
 				<thead>
 					<tr>
 						<th class="compact" />
@@ -93,7 +93,7 @@
 									<i class="las la-eye" /></button
 								>
 							</td>
-							<td class="payload">
+							<td class="payload ">
 								{#if msg.payload && Object.keys(msg.payload).length > 0}
 									{@html syntaxHighlight(JSON.stringify(msg.payload), null, 2)}
 								{/if}
@@ -111,7 +111,7 @@
 		white-space: nowrap;
 		overflow-x: hidden;
 		text-overflow: ellipsis;
-		max-width: 100%;
+		max-width: 1px;
 	}
 
 	.compact {

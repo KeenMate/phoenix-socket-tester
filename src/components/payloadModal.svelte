@@ -9,9 +9,8 @@
 
 	let editor, editorContainer;
 	function createEditor() {
-		editor = new JSONEditor(editorContainer, { mode: 'view' });
+		editor = new JSONEditor(editorContainer, { mode: 'code' });
 		editor.set(payload);
-		editor.expandAll();
 	}
 </script>
 
