@@ -1,5 +1,10 @@
 <script>
 	import Multiselect from 'svelte-multiselect/src/Multiselect.svelte';
+	import { getContext } from 'svelte';
+	import PayloadModal from './payloadModal.svelte';
+
+	const { open } = getContext('simple-modal');
+	const showModal = (payload) => open(PayloadModal, { payload });
 
 	function syntaxHighlight(json) {
 		json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -23,10 +28,9 @@
 		);
 	}
 
-
 	export let manager;
 	let selectedTopics = [];
-	
+
 	$: topicsStore = manager.topicsStore;
 	$: store = manager.store;
 </script>
@@ -45,7 +49,7 @@
 			label="topic"
 		/>
 		<div class="table-wrapper">
-			<table class="table table-striped">
+			<table class="table table-striped overflow-x-hidden">
 				<thead>
 					<tr>
 						<th class="compact" />
@@ -53,6 +57,8 @@
 						<th class="compact">Time</th>
 						<th class="compact">event</th>
 						<th class="compact">ref</th>
+						<th class="compact">status</th>
+						<th class="compact" />
 						<th>payload</th>
 					</tr>
 				</thead>
@@ -79,7 +85,19 @@
 								<b>{msg.event}</b>
 							</td>
 							<td> {msg.ref}</td>
-							<td>{@html syntaxHighlight(JSON.stringify(msg.payload), null, 2)}</td>
+							<td>
+								{msg.payload?.status ?? ''}
+							</td>
+							<td>
+								<button class="btn btn-sm btn-primary" on:click={() => showModal(msg.payload)}>
+									<i class="las la-eye" /></button
+								>
+							</td>
+							<td class="payload">
+								{#if msg.payload && Object.keys(msg.payload).length > 0}
+									{@html syntaxHighlight(JSON.stringify(msg.payload), null, 2)}
+								{/if}
+							</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -89,6 +107,13 @@
 </div>
 
 <style lang="scss">
+	.payload {
+		white-space: nowrap;
+		overflow-x: hidden;
+		text-overflow: ellipsis;
+		max-width: 100%;
+	}
+
 	.compact {
 		width: 1px;
 	}

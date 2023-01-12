@@ -30,7 +30,7 @@ export class channelManager {
 		});
 	}
 
-	disconnectSocket(){
+	disconnectSocket() {
 		return new Promise((resolve) => {
 			this.socket.disconnect(() => {
 				this.ready = false;
@@ -134,29 +134,27 @@ export class channelManager {
 		console.debug(type, event, payload);
 
 		//TODO make better
-		if (!event && typeof event !== 'string') {
-			return;
-		}
+		if (typeof event === 'string') {
+			let splittedEvent = event?.split(' ');
+			console.log(splittedEvent, splittedEvent?.length);
+			//catch phx_join
+			if (type == 'push' && splittedEvent?.length >= 3 && splittedEvent[1] == 'phx_join') {
+				let topic = splittedEvent[0];
+				console.log('IN');
+				let r = /\d+/;
+				let ref = splittedEvent[2].match(r);
 
-		let splittedEvent = event?.split(' ');
-		console.log(splittedEvent, splittedEvent?.length);
-		//catch phx_join
-		if (type == 'push' && splittedEvent?.length >= 3 && splittedEvent[1] == 'phx_join') {
-			let topic = splittedEvent[0];
-			console.log('IN');
-			let r = /\d+/;
-			let ref = splittedEvent[2].match(r);
-
-			this.addMessage(
-				{
-					joinRef: ref,
-					event: 'phx_join',
-					payload,
-					ref: ref,
-					topic
-				},
-				true
-			);
+				this.addMessage(
+					{
+						joinRef: ref,
+						event: 'phx_join',
+						payload,
+						ref: ref,
+						topic
+					},
+					true
+				);
+			}
 		}
 	}
 

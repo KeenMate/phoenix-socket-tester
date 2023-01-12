@@ -30,6 +30,7 @@
 		"jsoneditor": "^9.9.2",
 		"phoenix": "^1.7.0-rc.1",
 		"svelte-multiselect": "github:KeenMate/svelte-multiselect",
+		"svelte-simple-modal": "^1.4.6",
 		"toastr": "^2.1.4"
 	}
 }
