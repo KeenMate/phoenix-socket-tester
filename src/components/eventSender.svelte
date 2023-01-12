@@ -1,10 +1,16 @@
 <script>
+	import { onMount } from 'svelte';
 	import { Multiselect } from 'svelte-multiselect';
+	import 'jsoneditor/dist/jsoneditor.min.css';
+	import JSONEditor from 'jsoneditor';
 
 	export let manager;
 
 	let topicsStore = manager.topicsStore;
 	let eventName, channel, payload;
+
+	let editorContainer;
+	let editor;
 	function send() {
 		if (!channel) {
 			alert('Topic not selected');
@@ -13,14 +19,18 @@
 		//validate json
 		let json;
 		try {
-			json = JSON.parse(payload ?? '{}');
+			json = editor.get() ?? {};
 		} catch (e) {
 			console.log(e);
 			alert('invalid json');
 		}
 
-		manager.send(channel.topic, eventName);
+		manager.send(channel.topic, eventName, json);
 	}
+
+	onMount(() => {
+		editor = new JSONEditor(editorContainer, { mode: 'code' });
+	});
 </script>
 
 <div class="card mt-2">
@@ -42,9 +52,10 @@
 		</div>
 
 		<div class="input-group mb-3">
-			<input type="text" bind:value={eventName} class="form-control" placeholder="Event name"/>
+			<input type="text" bind:value={eventName} class="form-control" placeholder="Event name" />
 			<button on:click={send} class="btn btn-primary">send</button>
 		</div>
-		<textarea bind:value={payload} cols="30" rows="10" class="form-control" placeholder="Payload" />
+		<div class="edit-container" bind:this={editorContainer} />
+		<!-- <textarea bind:value={payload} cols="30" rows="10" class="form-control" placeholder="Payload" /> -->
 	</div>
 </div>

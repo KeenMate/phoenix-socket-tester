@@ -27,6 +27,7 @@
 		"bootstrap": "^5.2.3",
 		"highlight.js": "^11.7.0",
 		"json-colorizer": "^2.2.2",
+		"jsoneditor": "^9.9.2",
 		"phoenix": "^1.7.0-rc.1",
 		"svelte-multiselect": "github:KeenMate/svelte-multiselect",
 		"toastr": "^2.1.4"
