@@ -22,12 +22,13 @@
 			}
 		);
 	}
+
+
 	export let manager;
 	let selectedTopics = [];
+	
 	$: topicsStore = manager.topicsStore;
 	$: store = manager.store;
-	$: console.log($topicsStore);
-	$: console.log(selectedTopics);
 </script>
 
 <div class="card">
@@ -49,7 +50,7 @@
 					<tr>
 						<th class="compact" />
 						<th class="compact">Topic</th>
-						<!-- <th class="compact">Time</th> -->
+						<th class="compact">Time</th>
 						<th class="compact">event</th>
 						<th class="compact">ref</th>
 						<th>payload</th>
@@ -68,12 +69,12 @@
 							<td> {msg.topic}({msg.joinRef})</td>
 
 							<!-- <td>{JSON.stringify(msg)}</td> -->
-							<!-- <td>{msg.date.toLocaleTimeString('uk')}</td> -->
+							<td>{msg.date.toLocaleTimeString('uk')}</td>
 							<td
-								class:text-danger={msg.event == 'phx_error'}
+								class:text-danger={msg.event == 'phx_error' || msg.event == 'phx_close'}
 								class:text-primary={msg.event == 'phx_join'}
 								class:text-success={msg.event == 'phx_reply'}
-								class:text-warning={msg.event == 'phx_close'}
+								class:text-warning={msg.event == 'phx_leave'}
 							>
 								<b>{msg.event}</b>
 							</td>

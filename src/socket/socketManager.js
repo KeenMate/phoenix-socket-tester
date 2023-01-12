@@ -1,76 +1,96 @@
 import { Socket } from 'phoenix';
 import { writable } from 'svelte/store';
+import { wait } from '../helpers.js/helper';
 import { showSuccess, showError, showWarning } from '../helpers/notifications';
 
 export class channelManager {
 	constructor(socketUrl) {
 		this.socket = new Socket(socketUrl);
 		this.socket.connect();
-		// this.channel = this.socket.channel(topic);
 
 		this.socket.onMessage(this.handleMessage.bind(this));
-		this.socket.logger = this.log;
+		this.socket.logger = this.log.bind(this);
+
+		//internal variable for messages
 		this.messages = {};
 		this.store = new writable([]);
 		this.topicsStore = new writable([]);
-		// this.channel.join();
 		this.ready = true;
-		//TODO revork joinRefs and topic lookup
-		this.joinRefs = {};
+
 		this.topicsLookup = {};
 	}
 
-	addChannel(topic, params) {
+	async addChannel(topic, params) {
+		let oldChannel = this.socket.channels.find((channel) => channel.topic == topic);
+
 		let channel = this.socket.channel(topic, params);
-		//TODO manually leave channel if already connect to get leave push
-		// if()
-		this.joinChannel(channel);
-		this.addChannelHandlers(topic, channel);
+
+		//manually leave ca
+		if (oldChannel) {
+			let oldChannelRef = oldChannel.joinRef();
+			let leavePush = oldChannel.leave();
+
+			this.addMessage(
+				{
+					joinRef: oldChannelRef,
+					event: 'phx_leave',
+					payload: {},
+					ref: leavePush.ref,
+					topic
+				},
+				true
+			);
+
+			//! this timeout is here to force correct message order
+			await wait(1000);
+		}
+
+		this.joinChannel(topic, channel);
 	}
 
 	addChannelHandlers(topic, channel) {
-		channel.onClose(() => showError(`${topic} channel closed`));
+		channel.onClose(() => showWarning(`${topic} channel closed`));
 		channel.onError(() => showError(`${topic} channel error`));
-		channel.on('leave', () => {
-			this.addMessage(channel.joinRef(), 'phx_leave', {}, channel.joinPush.ref, true, topic);
-			showWarning(`${topic} leaving  `);
-		});
 	}
 
-	joinChannel(channel) {
+	joinChannel(topic, channel) {
 		let joinPush = channel.join();
+		this.addChannelHandlers(topic, channel);
 
 		joinPush
 			.receive('ok', () => this.afterChannelJoin(joinPush.channel))
-			.receive('error', ({ reason }) => showError(JSON.stringify(reason), 'Error joining'))
+			.receive('error', this.handleErrorJoining)
 			.receive('timeout', () => showError('Timeout'));
 
-		this.joinRefs[channel.topic] = channel.joinRef();
 		this.topicsLookup[channel.joinRef()] = channel.topic;
+	}
 
-		this.addMessage(channel.joinRef(), 'phx_join', {}, joinPush.ref, true, channel.topic);
+	handleErrorJoining(er) {
+		console.log(er);
+		showError(JSON.stringify(er), 'Error joining');
 	}
 
 	afterChannelJoin(channel) {
 		//join ref should be unqiue for given socket
 		this.messages[channel.join_ref] = [];
-
 		this.updateTopicsStore();
 		showSuccess(`${channel.topic} channel joined`);
 	}
 
 	updateTopicsStore() {
-		let channels = Object.keys(this.joinRefs).map((x) => {
-			return { ref: this.joinRefs[x], topic: x };
+		let topics = this.socket.channels.map((channel) => {
+			return { ref: channel.joinRef(), topic: channel.topic };
 		});
-		this.topicsStore.set(channels);
-	}
 
-	getJoinRef(topic) {
-		return this.joinRefs[topic];
+		topics.forEach((topic) => (this.topicsLookup[topic.ref] = topic.topic));
+
+		this.topicsStore.set(topics);
 	}
 
 	getTopic(ref) {
+		if (!this.topicsLookup[ref]) {
+			this.updateTopicsStore();
+		}
 		return this.topicsLookup[ref];
 	}
 
@@ -83,60 +103,80 @@ export class channelManager {
 		if (!data.join_ref) {
 			return data;
 		}
+
+		data.joinRef = data.join_ref;
+		data.topic = this.getTopic(data.join_ref);
 		//add to messages
-		this.addMessage(
-			data.join_ref,
-			data.event,
-			data.payload,
-			data.ref,
-			false,
-			this.getTopic(data.join_ref)
-		);
+		this.addMessage(data, false);
 		return data;
 	}
 
 	log(type, event, payload) {
 		console.debug(type, event, payload);
-		// let splitted = event.split(" ")
+
+		let splittedEvent = event.split(' ');
+		//catch phx_join
+		if (type == 'push' && splittedEvent[1] == 'phx_join') {
+			let topic = splittedEvent[0];
+
+			let r = /\d+/;
+			let ref = splittedEvent[2].match(r);
+
+			this.addMessage(
+				{
+					joinRef: ref,
+					event: 'phx_join',
+					payload,
+					ref: ref,
+					topic
+				},
+				true
+			);
+		}
 	}
 
 	send(topic, eventName, payload) {
-		let channel = this.getChannel(this.getJoinRef(topic));
-
-		if (!channel) {
-			throw 'channel with given topic is not joined';
-		}
+		let channel = this.getChannel(topic);
 
 		let push = channel.push(eventName, payload, 10000);
 
-		this.addMessage(this.getJoinRef(topic), eventName, push.payload(), push.ref, true, topic);
+		this.addMessage(
+			{
+				joinRef: channel.joinRef(),
+				event: eventName,
+				payload: push.payload(),
+				ref: push.ref,
+				topic
+			},
+			true
+		);
 	}
 
-	getChannel(joinRef) {
-		return this.socket.channels.find((x) => x.joinRef() == joinRef);
+	getChannel(topic) {
+		let channel = this.socket.channels.find((x) => x.topic == topic);
+		if (!channel) {
+			throw 'channel with given topic is not joined';
+		}
+		return channel;
 	}
 
-	addMessage(joinRef, event, payload, ref, outgoing, topic) {
-		let message = {
-			joinRef: joinRef,
-			event,
-			payload,
-			date: new Date(),
-			ref,
-			outgoing,
-			topic: topic
-		};
-
+	addMessage(message, outgoing) {
+		message.date = new Date();
+		message.outgoing = outgoing;
+		let joinRef = message.joinRef;
 		if (!this.messages[joinRef]) this.messages[joinRef] = [];
 		this.messages[joinRef ?? 'no_join_ref'].push(message);
 
-		console.debug(message);
 		//update store to force rerender
 		this.store.set(this.messages);
 	}
 
 	filterMessages(topics) {
-		let refs = topics.map((x) => x.ref);
+		//get all refs that have given topics
+		//this is to get messages in that channel ig it closed
+		let refs = Object.keys(this.topicsLookup).filter((key) =>
+			topics.map((x) => x.topic).includes(this.topicsLookup[key])
+		);
 
 		let messagesArrays = Object.keys(this.messages)
 			.filter((key) => refs.includes(key))
