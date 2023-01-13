@@ -14,6 +14,6 @@
 	}
 </script>
 
-<div>
+<div style="height: 80vh;">
 	<div class="edit-container" bind:this={editorContainer} />
 </div>
